@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Турне – морские путешествия</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+
+  <!-- Firebase SDK (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    /* ===== ВСЕ СТИЛИ (полностью, как в прошлом ответе) ===== */
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #f4f8fb;
+      color: #1e2b3a;
+      line-height: 1.6;
+    }
+    .container { max-width:1200px; margin:0 auto; padding:0 20px; }
+    header {
+      position: fixed; top:0; left:0; width:100%; z-index:1000;
+      padding:15px 0; transition: background 0.3s, box-shadow 0.3s;
+      background: transparent;
+    }
+    header.scrolled { background:#fff; box-shadow:0 2px 20px rgba(0,0,0,0.1); }
+    .header-wrapper { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; }
+    .logo { font-size:28px; font-weight:700; color:#fff; transition:color 0.3s; }
+    .logo i { color:#f1c40f; margin-right:8px; }
+    header.scrolled .logo { color:#1e2b3a; }
+    header.scrolled .logo i { color:#f39c12; }
+    .nav-menu { display:flex; list-style:none; gap:30px; }
+    .nav-menu a {
+      color:#fff; text-decoration:none; font-weight:600;
+      transition:color 0.3s; position:relative;
+    }
+    .nav-menu a::after {
+      content:''; position:absolute; bottom:-4px; left:0;
+      width:0; height:2px; background:#f1c40f;
+      transition:width 0.3s;
+    }
+    .nav-menu a:hover::after { width:100%; }
+    .nav-menu a:hover { color:#f1c40f; }
+    header.scrolled .nav-menu a { color:#1e2b3a; }
+    header.scrolled .nav-menu a:hover { color:#f39c12; }
+    .burger {
+      display:none; flex-direction:column; cursor:pointer; gap:5px;
+    }
+    .burger span {
+      display:block; width:28px; height:3px; background:#fff; border-radius:3px; transition:0.3s;
+    }
+    header.scrolled .burger span { background:#1e2b3a; }
+
+    .banner {
+      position:relative; height:100vh; min-height:600px;
+      display:flex; align-items:center; justify-content:center;
+      text-align:center; color:#fff; overflow:hidden;
+      background: linear-gradient(135deg, #0c2d4a, #1a6a7a);
+    }
+    .banner-bg {
+      position:absolute; top:-10%; left:-10%; width:120%; height:120%;
+      background: url('https://source.unsplash.com/1600x900/?ocean,sunset') center/cover no-repeat;
+      filter:brightness(0.5); z-index:0;
+      transform:translateY(0); transition:transform 0.1s linear;
+    }
+    .banner-content { position:relative; z-index:1; max-width:800px; padding:20px; }
+    .banner h1 {
+      font-size:58px; font-weight:700; margin-bottom:20px;
+      text-shadow:0 4px 30px rgba(0,0,0,0.3);
+      animation:fadeUp 1s ease;
+    }
+    .banner h1 span { color:#f1c40f; }
+    .banner p {
+      font-size:22px; margin-bottom:35px; opacity:0.9;
+      animation:fadeUp 1s ease 0.2s both;
+    }
+    .btn {
+      display:inline-block; background:#f1c40f; color:#1e2b3a;
+      padding:16px 45px; border-radius:50px; font-weight:700;
+      text-decoration:none; transition:background 0.3s, transform 0.2s;
+      box-shadow:0 8px 25px rgba(241,196,15,0.3);
+      animation:fadeUp 1s ease 0.4s both;
+    }
+    .btn:hover { background:#e0b50a; transform:translateY(-3px); }
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(40px); }
+      to { opacity:1; transform:translateY(0); }
+    }
+
+    section { padding:80px 0; }
+    .section-title {
+      font-size:36px; text-align:center; margin-bottom:15px; font-weight:700;
+    }
+    .section-subtitle { text-align:center; color:#666; font-size:18px; margin-bottom:50px; }
+    .section-title i { color:#f39c12; margin-right:10px; }
+
+    .tours-grid {
+      display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:30px;
+    }
+    .tour-card {
+      background:#fff; border-radius:16px; overflow:hidden;
+      box-shadow:0 10px 30px rgba(0,0,0,0.08);
+      transition:transform 0.4s, box-shadow 0.4s;
+    }
+    .tour-card:hover { transform:translateY(-12px); box-shadow:0 20px 40px rgba(0,0,0,0.15); }
+    .tour-card img { width:100%; height:220px; object-fit:cover; }
+    .tour-card-body { padding:25px; }
+    .tour-card-body h3 { font-size:22px; margin-bottom:8px; }
+    .tour-card-body .location { font-size:14px; color:#888; margin-bottom:12px; }
+    .tour-card-body .location i { color:#f39c12; margin-right:5px; }
+    .tour-card-body p { color:#555; margin-bottom:15px; font-size:15px; }
+    .tour-footer {
+      display:flex; justify-content:space-between; align-items:center;
+      border-top:1px solid #eee; padding-top:15px;
+    }
+    .tour-price { font-weight:700; font-size:22px; color:#1a6a7a; }
+    .tour-price small { font-size:14px; font-weight:400; color:#888; }
+    .tour-badge {
+      background:#f1c40f; color:#1e2b3a; padding:4px 12px;
+      border-radius:30px; font-size:12px; font-weight:700; text-transform:uppercase;
+    }
+    .btn-order {
+      background:#1a6a7a; color:#fff; border:none; padding:8px 20px;
+      border-radius:30px; font-weight:600; cursor:pointer;
+      transition:background 0.3s; font-size:14px;
+    }
+    .btn-order:hover { background:#0f4f5e; }
+
+    .advantages-grid {
+      display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:30px; margin-top:20px;
+    }
+    .advantage-item {
+      text-align:center; padding:30px 20px; background:#fff;
+      border-radius:16px; transition:transform 0.3s;
+      box-shadow:0 5px 20px rgba(0,0,0,0.05);
+    }
+    .advantage-item:hover { transform:scale(1.03); }
+    .advantage-item i { font-size:48px; color:#1a6a7a; margin-bottom:15px; }
+    .advantage-item h4 { font-size:20px; margin-bottom:8px; }
+    .advantage-item p { color:#666; font-size:14px; }
+
+    .gallery-grid {
+      display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:20px;
+    }
+    .gallery-item {
+      position:relative; overflow:hidden; border-radius:12px; cursor:pointer;
+    }
+    .gallery-item img {
+      width:100%; height:200px; object-fit:cover; transition:transform 0.5s;
+    }
+    .gallery-item:hover img { transform:scale(1.08); }
+    .gallery-item .overlay {
+      position:absolute; top:0; left:0; width:100%; height:100%;
+      background:rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center;
+      opacity:0; transition:opacity 0.4s; color:#fff; font-size:28px;
+    }
+    .gallery-item:hover .overlay { opacity:1; }
+
+    .contact-section {
+      display:grid; grid-template-columns:1fr 1fr; gap:50px;
+      background:#fff; border-radius:20px; padding:50px;
+      box-shadow:0 10px 40px rgba(0,0,0,0.05);
+    }
+    .contact-info h3 { font-size:28px; margin-bottom:20px; }
+    .contact-info p { margin-bottom:12px; font-size:16px; }
+    .contact-info i { width:30px; color:#1a6a7a; }
+    .contact-form input,
+    .contact-form textarea {
+      width:100%; padding:14px 18px; border:1px solid #ddd;
+      border-radius:8px; font-family:inherit; font-size:16px; margin-bottom:15px;
+      transition:border 0.3s;
+    }
+    .contact-form input:focus,
+    .contact-form textarea:focus {
+      outline:none; border-color:#1a6a7a;
+      box-shadow:0 0 0 3px rgba(26,106,122,0.1);
+    }
+    .contact-form button {
+      background:#1a6a7a; color:#fff; border:none; padding:14px 35px;
+      border-radius:50px; font-weight:700; font-size:16px; cursor:pointer;
+      transition:background 0.3s;
+    }
+    .contact-form button:hover { background:#0f4f5e; }
+
+    footer {
+      background:#0c2d4a; color:#cbd5e0; padding:60px 0 30px; margin-top:40px;
+    }
+    .footer-grid {
+      display:grid; grid-template-columns:2fr 1fr 1fr; gap:40px; margin-bottom:40px;
+    }
+    .footer-grid h4 { color:#fff; font-size:18px; margin-bottom:15px; }
+    .footer-grid p, .footer-grid a {
+      font-size:14px; color:#b0c4de; text-decoration:none; line-height:2;
+    }
+    .footer-grid a:hover { color:#f1c40f; }
+    .footer-social a {
+      display:inline-block; background:rgba(255,255,255,0.08);
+      width:38px; height:38px; line-height:38px; text-align:center;
+      border-radius:50%; margin-right:10px; color:#fff;
+      transition:background 0.3s;
+    }
+    .footer-social a:hover { background:#f1c40f; color:#0c2d4a; }
+    .footer-bottom {
+      border-top:1px solid rgba(255,255,255,0.1);
+      padding-top:20px; text-align:center; font-size:14px; color:#8a9bb5;
+    }
+    .admin-link { color:#f1c40f; cursor:pointer; text-decoration:underline; }
+    .admin-link:hover { color:#fff; }
+
+    .modal {
+      display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+      background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;
+    }
+    .modal.active { display:flex; }
+    .modal-content {
+      background:#fff; max-width:500px; width:90%; padding:30px;
+      border-radius:16px; position:relative; animation:modalIn 0.3s ease;
+    }
+    @keyframes modalIn {
+      from { transform:scale(0.9); opacity:0; }
+      to { transform:scale(1); opacity:1; }
+    }
+    .modal-close {
+      position:absolute; top:15px; right:20px; font-size:28px; cursor:pointer;
+      color:#888; transition:color 0.3s;
+    }
+    .modal-close:hover { color:#333; }
+    .modal-content h2 { margin-bottom:20px; font-size:24px; }
+    .modal-content label { display:block; margin-top:12px; font-weight:600; }
+    .modal-content input,
+    .modal-content textarea {
+      width:100%; padding:10px 14px; border:1px solid #ddd;
+      border-radius:8px; margin-top:5px; font-family:inherit;
+    }
+    .modal-content button[type="submit"] {
+      margin-top:20px; width:100%; padding:12px;
+      background:#1a6a7a; color:#fff; border:none; border-radius:30px;
+      font-weight:700; font-size:16px; cursor:pointer; transition:background 0.3s;
+    }
+    .modal-content button[type="submit"]:hover { background:#0f4f5e; }
+
+    .admin-table {
+      width:100%; border-collapse:collapse; font-size:14px;
+    }
+    .admin-table th,
+    .admin-table td {
+      padding:10px 8px; border-bottom:1px solid #eee; text-align:left;
+    }
+    .admin-table th { background:#f0f4f8; font-weight:600; }
+    .admin-status {
+      padding:4px 12px; border-radius:30px; font-size:12px; font-weight:600;
+    }
+    .admin-status.new { background:#3498db; color:#fff; }
+    .admin-status.processing { background:#f39c12; color:#fff; }
+    .admin-status.done { background:#2ecc71; color:#fff; }
+    .admin-actions button {
+      background:none; border:none; cursor:pointer; font-size:16px; margin:0 3px;
+      color:#888; transition:color 0.3s;
+    }
+    .admin-actions button:hover { color:#333; }
+    .admin-actions .delete-btn:hover { color:#e74c3c; }
+    .loading-spinner {
+      text-align:center; padding:30px; color:#888;
+    }
+    .loading-spinner i { font-size:40px; animation:spin 1s linear infinite; }
+    @keyframes spin { 100% { transform:rotate(360deg); } }
+
+    @media (max-width:992px) {
+      .contact-section { grid-template-columns:1fr; padding:30px; }
+      .footer-grid { grid-template-columns:1fr 1fr; }
+    }
+    @media (max-width:768px) {
+      .nav-menu {
+        display:none; flex-direction:column; width:100%; background:#fff;
+        padding:20px 0; gap:15px; text-align:center;
+        box-shadow:0 10px 30px rgba(0,0,0,0.1); border-radius:10px;
+        position:absolute; top:70px; left:0;
+      }
+      .nav-menu.active { display:flex; }
+      .nav-menu a { color:#1e2b3a !important; }
+      .burger { display:flex; }
+      .banner h1 { font-size:36px; }
+      .banner p { font-size:18px; }
+      .section-title { font-size:28px; }
+      .footer-grid { grid-template-columns:1fr; text-align:center; }
+      .footer-social a { margin:0 5px; }
+    }
+    @media (max-width:480px) {
+      .banner h1 { font-size:28px; }
+      .contact-section { padding:20px; }
+      .modal-content { padding:20px; }
+    }
+    .fade-in {
+      opacity:0; transform:translateY(30px);
+      transition:opacity 0.8s ease, transform 0.8s ease;
+    }
+    .fade-in.visible { opacity:1; transform:translateY(0); }
+  </style>
+</head>
+<body>
+
+<!-- ШАПКА -->
+<header id="header">
+  <div class="container header-wrapper">
+    <div class="logo"><i class="fas fa-ship"></i>Турне</div>
+    <div class="burger" id="burger">
+      <span></span><span></span><span></span>
+    </div>
+    <ul class="nav-menu" id="navMenu">
+      <li><a href="#tours">Туры</a></li>
+      <li><a href="#advantages">Почему мы</a></li>
+      <li><a href="#gallery">Галерея</a></li>
+      <li><a href="#contact">Контакты</a></li>
+    </ul>
+  </div>
+</header>
+
+<!-- БАННЕР -->
+<section class="banner" id="banner">
+  <div class="banner-bg" id="bannerBg"></div>
+  <div class="banner-content">
+    <h1>Откройте <span>море</span> приключений</h1>
+    <p>Путешествия, которые меняют жизнь. Лучшие маршруты и комфорт.</p>
+    <a href="#tours" class="btn">Выбрать тур</a>
+  </div>
+</section>
+
+<!-- ТУРЫ -->
+<section id="tours" class="container">
+  <h2 class="section-title fade-in"><i class="fas fa-umbrella-beach"></i>Популярные туры</h2>
+  <p class="section-subtitle fade-in">Самые востребованные направления от нашей команды</p>
+  <div class="tours-grid">
+    <div class="tour-card fade-in" data-tour="Санторини, Греция">
+      <img src="https://source.unsplash.com/600x400/?santorini" alt="Санторини" />
+      <div class="tour-card-body">
+        <h3>Санторини, Греция</h3>
+        <div class="location"><i class="fas fa-map-pin"></i> Эгейское море</div>
+        <p>Белоснежные домики, закаты и лазурные воды.</p>
+        <div class="tour-footer">
+          <span class="tour-price">₽ 80 000 <small>/ 7 ночей</small></span>
+          <span class="tour-badge">Горящий</span>
+          <button class="btn-order" onclick="openOrderModal(this)">Заказать</button>
+        </div>
+      </div>
+    </div>
+    <div class="tour-card fade-in" data-tour="Бора-Бора, Франц. Полинезия">
+      <img src="https://source.unsplash.com/600x400/?bora-bora" alt="Бора-Бора" />
+      <div class="tour-card-body">
+        <h3>Бора-Бора, Франц. Полинезия</h3>
+        <div class="location"><i class="fas fa-map-pin"></i> Тихий океан</div>
+        <p>Райский отдых в овервотер-бунгало.</p>
+        <div class="tour-footer">
+          <span class="tour-price">₽ 195 000 <small>/ 10 ночей</small></span>
+          <span class="tour-badge">VIP</span>
+          <button class="btn-order" onclick="openOrderModal(this)">Заказать</button>
+        </div>
+      </div>
+    </div>
+    <div class="tour-card fade-in" data-tour="Бали, Индонезия">
+      <img src="https://source.unsplash.com/600x400/?bali" alt="Бали" />
+      <div class="tour-card-body">
+        <h3>Бали, Индонезия</h3>
+        <div class="location"><i class="fas fa-map-pin"></i> Индийский океан</div>
+        <p>Джунгли, храмы, сёрфинг и йога-ретриты.</p>
+        <div class="tour-footer">
+          <span class="tour-price">₽ 120 000 <small>/ 12 ночей</small></span>
+          <span class="tour-badge">Популярный</span>
+          <button class="btn-order" onclick="openOrderModal(this)">Заказать</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ПРЕИМУЩЕСТВА -->
+<section id="advantages" style="background:#eaf2f7;">
+  <div class="container">
+    <h2 class="section-title fade-in"><i class="fas fa-star"></i>Почему мы</h2>
+    <p class="section-subtitle fade-in">Нас выбирают за надёжность и душу</p>
+    <div class="advantages-grid">
+      <div class="advantage-item fade-in">
+        <i class="fas fa-user-tie"></i>
+        <h4>Опыт 12 лет</h4>
+        <p>Тысячи довольных путешественников</p>
+      </div>
+      <div class="advantage-item fade-in">
+        <i class="fas fa-shield-alt"></i>
+        <h4>Безопасность</h4>
+        <p>Страховка и поддержка 24/7</p>
+      </div>
+      <div class="advantage-item fade-in">
+        <i class="fas fa-hand-holding-heart"></i>
+        <h4>Индивидуальный подход</h4>
+        <p>Туры под ваш бюджет и предпочтения</p>
+      </div>
+      <div class="advantage-item fade-in">
+        <i class="fas fa-plane-departure"></i>
+        <h4>Прямые рейсы</h4>
+        <p>Только проверенные авиакомпании</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ГАЛЕРЕЯ -->
+<section id="gallery" class="container">
+  <h2 class="section-title fade-in"><i class="fas fa-images"></i>Фотогалерея</h2>
+  <p class="section-subtitle fade-in">Вдохновляйтесь красотой мира</p>
+  <div class="gallery-grid">
+    <div class="gallery-item fade-in">
+      <img src="https://source.unsplash.com/400x300/?maldives" alt="Мальдивы" />
+      <div class="overlay"><i class="fas fa-search-plus"></i></div>
+    </div>
+    <div class="gallery-item fade-in">
+      <img src="https://source.unsplash.com/400x300/?norway" alt="Норвегия" />
+      <div class="overlay"><i class="fas fa-search-plus"></i></div>
+    </div>
+    <div class="gallery-item fade-in">
+      <img src="https://source.unsplash.com/400x300/?thailand" alt="Таиланд" />
+      <div class="overlay"><i class="fas fa-search-plus"></i></div>
+    </div>
+    <div class="gallery-item fade-in">
+      <img src="https://source.unsplash.com/400x300/?dubai" alt="Дубай" />
+      <div class="overlay"><i class="fas fa-search-plus"></i></div>
+    </div>
+  </div>
+</section>
+
+<!-- КОНТАКТЫ -->
+<section id="contact" class="container">
+  <h2 class="section-title fade-in"><i class="fas fa-paper-plane"></i>Свяжитесь с нами</h2>
+  <p class="section-subtitle fade-in">Мы ответим на все вопросы и поможем выбрать идеальный тур</p>
+  <div class="contact-section fade-in">
+    <div class="contact-info">
+      <h3>Контакты</h3>
+      <p><i class="fas fa-map-marker-alt"></i> г. Москва, ул. Тверская, д. 5</p>
+      <p><i class="fas fa-phone-alt"></i> +7 (495) 123-45-67</p>
+      <p><i class="fas fa-envelope"></i> info@turne.ru</p>
+      <p><i class="fas fa-clock"></i> Пн–Пт: 10:00 – 20:00</p>
+      <div style="margin-top:20px;">
+        <p><i class="fab fa-telegram"></i> @turne_help</p>
+        <p><i class="fab fa-whatsapp"></i> +7 999 123-45-67</p>
+      </div>
+    </div>
+    <form class="contact-form" action="#" method="POST">
+      <input type="text" placeholder="Ваше имя" required />
+      <input type="email" placeholder="Email" required />
+      <input type="text" placeholder="Телефон" />
+      <textarea rows="4" placeholder="Ваше сообщение..."></textarea>
+      <button type="submit">Отправить запрос</button>
+    </form>
+  </div>
+</section>
+
+<!-- ФУТЕР -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4><i class="fas fa-ship"></i> Турне</h4>
+        <p>Путешествия со смыслом. Открываем мир с 2010 года.</p>
+        <div class="footer-social">
+          <a href="#"><i class="fab fa-facebook-f"></i></a>
+          <a href="#"><i class="fab fa-instagram"></i></a>
+          <a href="#"><i class="fab fa-youtube"></i></a>
+          <a href="#"><i class="fab fa-vk"></i></a>
+        </div>
+      </div>
+      <div>
+        <h4>Быстрые ссылки</h4>
+        <a href="#tours">Туры</a><br />
+        <a href="#advantages">О нас</a><br />
+        <a href="#gallery">Галерея</a><br />
+        <a href="#contact">Контакты</a>
+      </div>
+      <div>
+        <h4>Подписка</h4>
+        <p>Получайте свежие предложения</p>
+        <form style="display:flex; gap:8px; margin-top:10px;">
+          <input type="email" placeholder="Email" style="flex:1; padding:10px; border-radius:30px; border:none;" />
+          <button style="background:#f1c40f; border:none; border-radius:30px; padding:10px 18px; font-weight:700; cursor:pointer;">OK</button>
+        </form>
+        <p style="margin-top:15px;">
+          <span class="admin-link" onclick="openAdminLogin()">🔐 Админ-панель</span>
+        </p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      &copy; 2026 Турне. Все права защищены. Сделано с ❤️
+    </div>
+  </div>
+</footer>
+
+<!-- ===== МОДАЛКА ЗАКАЗА ===== -->
+<div class="modal" id="orderModal">
+  <div class="modal-content">
+    <span class="modal-close" onclick="closeModal('orderModal')">&times;</span>
+    <h2>Заказ тура</h2>
+    <form id="orderForm">
+      <input type="hidden" id="orderTour" value="" />
+      <label>Тур</label>
+      <input type="text" id="orderTourDisplay" readonly style="background:#f0f4f8; font-weight:600;" />
+      <label>Ваше имя *</label>
+      <input type="text" id="orderName" required placeholder="Иван Петров" />
+      <label>Телефон *</label>
+      <input type="tel" id="orderPhone" required placeholder="+7 999 123-45-67" />
+      <label>Email</label>
+      <input type="email" id="orderEmail" placeholder="ivan@mail.ru" />
+      <label>Комментарий</label>
+      <textarea id="orderComment" rows="3" placeholder="Дополнительные пожелания..."></textarea>
+      <button type="submit">Отправить заявку</button>
+    </form>
+  </div>
+</div>
+
+<!-- ===== МОДАЛКА ВХОДА В АДМИНКУ ===== -->
+<div class="modal" id="adminLoginModal">
+  <div class="modal-content" style="max-width:400px;">
+    <span class="modal-close" onclick="closeModal('adminLoginModal')">&times;</span>
+    <h2><i class="fas fa-lock"></i> Вход в админ-панель</h2>
+    <form id="adminLoginForm">
+      <label>Введите пароль</label>
+      <input type="password" id="adminPassword" placeholder="Пароль" required />
+      <button type="submit">Войти</button>
+    </form>
+    <p style="margin-top:10px; font-size:13px; color:#888;">Пароль по умолчанию: <strong>admin123</strong></p>
+  </div>
+</div>
+
+<!-- ===== МОДАЛКА АДМИН-ПАНЕЛИ ===== -->
+<div class="modal" id="adminPanelModal">
+  <div class="modal-content" style="max-width:900px; max-height:90vh; overflow-y:auto;">
+    <span class="modal-close" onclick="closeModal('adminPanelModal')">&times;</span>
+    <h2><i class="fas fa-user-cog"></i> Админ-панель – Заказы (Firebase)</h2>
+    <div id="adminOrdersContainer">
+      <div class="loading-spinner"><i class="fas fa-spinner"></i><br />Загрузка заказов...</div>
+    </div>
+    <button onclick="logoutAdmin()" style="margin-top:20px; background:#e74c3c; color:#fff; border:none; padding:10px 25px; border-radius:30px; cursor:pointer;">Выйти</button>
+  </div>
+</div>
+
+<!-- ===== СКРИПТЫ ===== -->
+<script>
+  // =======================================================
+  // ★★★ ВАШ КОНФИГ FIREBASE (вставлен) ★★★
+  // =======================================================
+  const firebaseConfig = {
+    apiKey: "AIzaSyAgvj_iqTpvZlTUq4DDLxs2onW4wSvX4DI",
+    authDomain: "yhnjrmf.firebaseapp.com",
+    projectId: "yhnjrmf",
+    storageBucket: "yhnjrmf.firebasestorage.app",
+    messagingSenderId: "240938759036",
+    appId: "1:240938759036:web:cb08f8c70bdcda45272af9",
+    measurementId: "G-Q258K8KL4Q"
+  };
+
+  // Инициализация
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  // -------------------- РАБОТА С FIRESTORE --------------------
+  const ORDERS_COLLECTION = 'orders';
+
+  async function getOrders() {
+    const snapshot = await db.collection(ORDERS_COLLECTION).orderBy('date', 'desc').get();
+    const orders = [];
+    snapshot.forEach(doc => orders.push({ id: doc.id, ...doc.data() }));
+    return orders;
+  }
+
+  async function addOrder(orderData) {
+    const docRef = await db.collection(ORDERS_COLLECTION).add({
+      ...orderData,
+      date: new Date().toLocaleString('ru-RU'),
+      status: 'new',
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return docRef.id;
+  }
+
+  async function updateOrderStatus(id, newStatus) {
+    await db.collection(ORDERS_COLLECTION).doc(id).update({ status: newStatus });
+  }
+
+  async function deleteOrder(id) {
+    await db.collection(ORDERS_COLLECTION).doc(id).delete();
+  }
+
+  // -------------------- UI ФУНКЦИИ (модалки, админка) --------------------
+  function openOrderModal(btn) {
+    const card = btn.closest('.tour-card');
+    const tourName = card.dataset.tour || card.querySelector('h3').innerText;
+    document.getElementById('orderTour').value = tourName;
+    document.getElementById('orderTourDisplay').value = tourName;
+    document.getElementById('orderModal').classList.add('active');
+    document.getElementById('orderForm').reset();
+    document.getElementById('orderTourDisplay').value = tourName;
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+  }
+
+  document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('click', function(e) {
+      if (e.target === this) this.classList.remove('active');
+    });
+  });
+
+  // Заказ
+  document.getElementById('orderForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const tour = document.getElementById('orderTour').value;
+    const name = document.getElementById('orderName').value.trim();
+    const phone = document.getElementById('orderPhone').value.trim();
+    const email = document.getElementById('orderEmail').value.trim();
+    const comment = document.getElementById('orderComment').value.trim();
+
+    if (!name || !phone) {
+      alert('Пожалуйста, заполните имя и телефон.');
+      return;
+    }
+
+    try {
+      await addOrder({ tour, name, phone, email, comment });
+      alert('✅ Заявка отправлена! Мы свяжемся с вами.');
+      closeModal('orderModal');
+    } catch (err) {
+      alert('❌ Ошибка при отправке. Попробуйте позже.');
+      console.error(err);
+    }
+  });
+
+  // Админка
+  const ADMIN_PASSWORD = 'admin123'; // Можно изменить
+
+  function openAdminLogin() {
+    document.getElementById('adminLoginModal').classList.add('active');
+    document.getElementById('adminPassword').value = '';
+  }
+
+  document.getElementById('adminLoginForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const pass = document.getElementById('adminPassword').value;
+    if (pass === ADMIN_PASSWORD) {
+      closeModal('adminLoginModal');
+      openAdminPanel();
+    } else {
+      alert('❌ Неверный пароль!');
+    }
+  });
+
+  async function openAdminPanel() {
+    document.getElementById('adminPanelModal').classList.add('active');
+    await renderAdminOrders();
+  }
+
+  async function renderAdminOrders() {
+    const container = document.getElementById('adminOrdersContainer');
+    container.innerHTML = `<div class="loading-spinner"><i class="fas fa-spinner"></i><br />Загрузка...</div>`;
+
+    try {
+      const orders = await getOrders();
+      if (orders.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:#888;">Пока нет заказов.</p>';
+        return;
+      }
+
+      let html = `<table class="admin-table"><thead><tr><th>Тур</th><th>Клиент</th><th>Телефон</th><th>Email</th><th>Дата</th><th>Статус</th><th>Действия</th></tr></thead><tbody>`;
+      orders.forEach(order => {
+        const statusClass = order.status === 'new' ? 'new' : (order.status === 'processing' ? 'processing' : 'done');
+        const statusText = order.status === 'new' ? 'Новый' : (order.status === 'processing' ? 'В обработке' : 'Завершён');
+        html += `
+          <tr>
+            <td><strong>${order.tour}</strong></td>
+            <td>${order.name}</td>
+            <td>${order.phone}</td>
+            <td>${order.email || '—'}</td>
+            <td>${order.date}</td>
+            <td><span class="admin-status ${statusClass}">${statusText}</span></td>
+            <td class="admin-actions">
+              <button onclick="changeStatus('${order.id}', 'new')" title="Новый">🟦</button>
+              <button onclick="changeStatus('${order.id}', 'processing')" title="В обработке">🟧</button>
+              <button onclick="changeStatus('${order.id}', 'done')" title="Завершён">🟩</button>
+              <button onclick="deleteOrderAction('${order.id}')" class="delete-btn" title="Удалить">🗑️</button>
+            </td>
+          </tr>
+        `;
+      });
+      html += `</tbody></table>`;
+      container.innerHTML = html;
+    } catch (error) {
+      container.innerHTML = '<p style="color:red; text-align:center;">❌ Ошибка загрузки заказов. Проверьте консоль.</p>';
+      console.error(error);
+    }
+  }
+
+  async function changeStatus(id, newStatus) {
+    try {
+      await updateOrderStatus(id, newStatus);
+      await renderAdminOrders();
+    } catch (error) {
+      alert('Ошибка обновления статуса.');
+    }
+  }
+
+  async function deleteOrderAction(id) {
+    if (confirm('Удалить заказ?')) {
+      try {
+        await deleteOrder(id);
+        await renderAdminOrders();
+      } catch (error) {
+        alert('Ошибка удаления.');
+      }
+    }
+  }
+
+  function logoutAdmin() {
+    closeModal('adminPanelModal');
+  }
+
+  // -------------------- БУРГЕР, ПАРАЛЛАКС, АНИМАЦИИ --------------------
+  const burger = document.getElementById('burger');
+  const navMenu = document.getElementById('navMenu');
+  burger.addEventListener('click', () => navMenu.classList.toggle('active'));
+  document.querySelectorAll('.nav-menu a').forEach(link => {
+    link.addEventListener('click', () => navMenu.classList.remove('active'));
+  });
+
+  const header = document.getElementById('header');
+  window.addEventListener('scroll', () => {
+    header.classList.toggle('scrolled', window.scrollY > 60);
+  });
+
+  const bannerBg = document.getElementById('bannerBg');
+  window.addEventListener('scroll', () => {
+    if (bannerBg) {
+      bannerBg.style.transform = `translateY(${window.scrollY * 0.2}px)`;
+    }
+  });
+
+  const fadeElements = document.querySelectorAll('.fade-in');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) entry.target.classList.add('visible');
+    });
+  }, { threshold: 0.15 });
+  fadeElements.forEach(el => observer.observe(el));
+
+  console.log('🔥 Firebase подключён. Заказы хранятся в облаке!');
+</script>
+
+</body>
+</html>
